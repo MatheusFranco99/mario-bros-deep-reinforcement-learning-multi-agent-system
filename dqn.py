@@ -2,6 +2,7 @@
 import random
 from time import sleep
 import numpy as np
+import colorama
 
 from pettingzoo.atari import mario_bros_v3
 
@@ -100,8 +101,8 @@ class Agent:
         if(rand < self.epsilon):
             action = np.random.choice(self.action_space)
         else:
-            action = self.dqnnet.predict(state)
-        
+            actions = self.dqnnet.predict(state)
+            action = np.argmax(actions)
         return action
     
     def remember(self,state,action,next_state,reward,done):
@@ -139,13 +140,14 @@ class Agent:
             self.epsilon -= self.epsilon_step
 
     def save_model(self):
-        self.q_eval.save(self.model_file)
+        self.dqnnet.model.save(self.model_file)
     
     def load_model(self):
-        self.q_eval = load_model(self.model_file)
+        self.dqnnet.model = load_model(self.model_file)
     
 
-def normal_step(agent,state,score,env,name='first_0'):
+def learn_step(agent,state,score,env,name='first_0'):
+    
     action = agent.choose_action(np.array(state))
     print(action)
     env.step(action)
@@ -158,7 +160,7 @@ def normal_step(agent,state,score,env,name='first_0'):
     state.pop(0)
     state+=[observation]
     score+=reward
-    agent.remember(old_state,action1,np.array(state),reward,done)
+    agent.remember(old_state,action,np.array(state),reward,done)
     agent.learn()
 
     return agent,state,action,score,done,env
@@ -175,49 +177,148 @@ def dont_learn_step(agent,action,state,score,env,name='first_0'):
     state+=[observation]
     score+=reward
     if(reward!=0):
-        agent.remember(old_state,action1,np.array(state),reward,done)
+        agent.remember(old_state,action,np.array(state),reward,done)
+
+    return agent,state,action,score,done,env
+
+def normal_step(agent,state,score,env,name='first_0'):
+    action = agent.choose_action(np.array(state))
+    print(action)
+    env.step(action)
+    reward = env.rewards[name]
+    done = env.dones[name]
+    observation = env.observe(name)
+
+    state.pop(0)
+    state+=[observation]
+    score+=reward
 
     return agent,state,action,score,done,env
 
 
-env = mario_bros_v3.env(obs_type = 'grayscale_image')
+def load_models(fname1 = 'dqn_model_agent1.h5', fname2 = 'dqn_model_agent2.h5'):
+    agent1 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent1.h5')
+    agent2 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent2.h5')
+    agent1.load_model()
+    agent2.load_model()
+    return agent1,agent2
 
-env.reset()
-state, r, d, info = env.last()
+def testModels(agent1,agent2,render=True,num_max_steps=10000):
 
-agent1 = Agent(210,160,4,18,1.0,32)
-agent2 = Agent(210,160,4,18,1.0,32)
+    env = mario_bros_v3.env(obs_type = 'grayscale_image')
 
-print(state.shape)
+    env.reset()
+    state, r, d, info = env.last()
 
-score1 = 0
-score2 = 0
-state1 = []
-state2 = []
-for i in range(4):
-    o,r,d,i = env.last()
-    state1+=[o]
-    score1 += r
-    env.step(0)
-    o,r,d,i = env.last()
-    state2+=[o]
-    score2+=r
-    env.step(0)
+    score1 = 0
+    score2 = 0
+    state1 = []
+    state2 = []
+    done1 = False
+    done2 = False
+    for i in range(4):
+        o,r,done1,i = env.last()
+        state1+=[o]
+        score1 += r
+        env.step(0)
+        o,r,done2,i = env.last()
+        state2+=[o]
+        score2+=r
+        env.step(0)
 
-action1 = 0
-action2 = 0
+    action1 = 0
+    action2 = 0
 
-for i in range(100):
-    agent1,state1,action1,score1,done1,env = normal_step(agent1,state1,score1,env)
-    env.render()
-    agent2,state2,action2,score2,done2,env = normal_step(agent2,state2,score2,env,name='second_0')
-    env.render()
+    done = done1 and done2
+
+    for i in range(num_max_steps):
+        if not done:
+            if not done1:
+                agent1,state1,action1,score1,done1,env = normal_step(agent1,state1,score1,env)
+                if render:
+                    env.render()
+            if not done2:
+                agent2,state2,action2,score2,done2,env = normal_step(agent2,state2,score2,env,name='second_0')
+                if render:
+                    env.render()
+
+def progress_bar(progress, total, color = colorama.Fore.YELLOW):
+    percent = int(100*(progress / float(total)))
+    bar = chr(9608) * percent + '-' * (100-percent)
+    if (progress == total):
+        color = colorama.Fore.GREEN
+    print(color + f"\r|{bar}| {percent:.2f}%", end='\r')
+
+def trainModels(num_max_steps,render=False):
+
+    env = mario_bros_v3.env(obs_type = 'grayscale_image')
+
+    env.reset()
+    state, r, d, info = env.last()
+
+    agent1 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent1.h5')
+    agent2 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent2.h5')
+
+    score1 = 0
+    score2 = 0
+    state1 = []
+    state2 = []
+    done1 = False
+    done2 = False
+    for i in range(4):
+        o,r,done1,i = env.last()
+        state1+=[o]
+        score1 += r
+        env.step(0)
+        o,r,done2,i = env.last()
+        state2+=[o]
+        score2+=r
+        env.step(0)
+
+    action1 = 0
+    action2 = 0
+
+    done = done1 and done2
+
+    for i in range(num_max_steps):
+        progress_bar(i,num_max_steps)
+        if not done:
+            if not done1:
+                agent1,state1,action1,score1,done1,env = learn_step(agent1,state1,score1,env)
+                if render:
+                    env.render()
+            if not done2:
+                agent2,state2,action2,score2,done2,env = learn_step(agent2,state2,score2,env,name='second_0')
+                if render:
+                    env.render()
+
+            for j in range(3):
+                if not done1:
+                    agent1,state1,action1,score1,done1,env = dont_learn_step(agent1,action1,state1,score1,env)
+                    if render:
+                        env.render()
+                if not done2:
+                    agent2,state2,action2,score2,done2,env = dont_learn_step(agent2,action2,state2,score2,env,name='second_0')
+                    if render:
+                        env.render()
+            
+            done = done1 and done2
+        else:
+            break
+
+        agent1.save_model()
+        agent2.save_model()
+
+
+
+if __name__ == '__main__':
+
+    test = False
+    train = True
+
+    if(test):
+        agent1,agent2 = load_models()
+        testModels(agent1,agent2)
     
-    sleep(0.1)
-
-    for j in range(3):
-        agent1,state1,action1,score1,done1,env = dont_learn_step(agent1,action1,state1,score1,env)
-        env.render()
-        agent2,state2,action2,score2,done2,env = dont_learn_step(agent2,action2,state2,score2,env,name='second_0')
-        env.render()
-
+    if(train):
+        trainModels(5000,render=False)
