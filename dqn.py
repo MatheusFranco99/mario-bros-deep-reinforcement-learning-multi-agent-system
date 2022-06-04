@@ -6,6 +6,8 @@ import colorama
 
 from pettingzoo.atari import mario_bros_v3
 
+import signal
+
 
 class ReplayMemory:
 
@@ -72,7 +74,7 @@ class DQNNet:
         return self.model
     
     def predict(self,state):
-        actions = self.model.predict(state)
+        actions = self.model.predict(state,verbose=0)
         return actions
     
 
@@ -95,7 +97,7 @@ class Agent:
 
     def choose_action(self,state):
 
-        # state = state[np.newaxis,:]
+        state = state[np.newaxis,:]
 
         rand = np.random.random()
         if(rand < self.epsilon):
@@ -122,7 +124,7 @@ class Agent:
         terminal = self.memory.getField(mem_sample,name='terminal')
 
         action_indices = action
-        print('inside learn')
+        # print('inside learn')
 
         q_eval = self.dqnnet.predict(state)
         q_next = self.dqnnet.predict(next_state)
@@ -147,51 +149,71 @@ class Agent:
     
 
 def learn_step(agent,state,score,env,name='first_0'):
+    o, r, done, info = env.last()
+    action = None
+    if(done):
+        action = None
+        env.step(action)
+    else:
     
-    action = agent.choose_action(np.array(state))
-    print(action)
-    env.step(action)
-    reward = env.rewards[name]
-    done = env.dones[name]
-    observation = env.observe(name)
+        action = agent.choose_action(np.array(state))
+        # print(action)
+        env.step(action)
+        done = env.dones[name]
+        if not done:
+            reward = env.rewards[name]
+            observation = env.observe(name)
 
-    old_state = np.array(state.copy())
+            old_state = np.array(state.copy())
 
-    state.pop(0)
-    state+=[observation]
-    score+=reward
-    agent.remember(old_state,action,np.array(state),reward,done)
-    agent.learn()
+            state.pop(0)
+            state+=[observation]
+            score+=reward
+            agent.remember(old_state,action,np.array(state),reward,done)
+            agent.learn()
 
     return agent,state,action,score,done,env
 
 def dont_learn_step(agent,action,state,score,env,name='first_0'):
-    env.step(action)
-    reward = env.rewards[name]
-    done = env.dones[name]
-    observation = env.observe(name)
+    o, r, done, info = env.last()
+    if(done):
+        action = None
+        env.step(None)
+    else:
+        env.step(action)
+        done = env.dones[name]
+        if not done:
+            reward = env.rewards[name]
+            observation = env.observe(name)
 
-    old_state = np.array(state.copy())
+            old_state = np.array(state.copy())
 
-    state.pop(0)
-    state+=[observation]
-    score+=reward
-    if(reward!=0):
-        agent.remember(old_state,action,np.array(state),reward,done)
+            state.pop(0)
+            state+=[observation]
+            score+=reward
+            if(reward!=0):
+                agent.remember(old_state,action,np.array(state),reward,done)
 
     return agent,state,action,score,done,env
 
 def normal_step(agent,state,score,env,name='first_0'):
-    action = agent.choose_action(np.array(state))
-    print(action)
-    env.step(action)
-    reward = env.rewards[name]
-    done = env.dones[name]
-    observation = env.observe(name)
+    o, r, done, info = env.last()
+    action = None
+    if(done):
+        action = None
+        env.step(action)
+    else:
+        action = agent.choose_action(np.array(state))
+        # print(action)
+        env.step(action)
+        done = env.dones[name]
+        if not done:
+            reward = env.rewards[name]
+            observation = env.observe(name)
 
-    state.pop(0)
-    state+=[observation]
-    score+=reward
+            state.pop(0)
+            state+=[observation]
+            score+=reward
 
     return agent,state,action,score,done,env
 
@@ -241,6 +263,11 @@ def testModels(agent1,agent2,render=True,num_max_steps=10000):
                 agent2,state2,action2,score2,done2,env = normal_step(agent2,state2,score2,env,name='second_0')
                 if render:
                     env.render()
+            
+            done = done1 and done2
+    
+    print(f"{score1=}{score2=}")
+                
 
 def progress_bar(progress, total, color = colorama.Fore.YELLOW):
     percent = int(100*(progress / float(total)))
@@ -249,15 +276,26 @@ def progress_bar(progress, total, color = colorama.Fore.YELLOW):
         color = colorama.Fore.GREEN
     print(color + f"\r|{bar}| {percent:.2f}%", end='\r')
 
-def trainModels(num_max_steps,render=False):
+def trainModels(num_max_steps,jumpKSteps=3,render=False,):
+
+    global agent1, agent2
+
 
     env = mario_bros_v3.env(obs_type = 'grayscale_image')
 
-    env.reset()
+    env.reset(seed=1000)
+    env.render()
     state, r, d, info = env.last()
 
-    agent1 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent1.h5')
-    agent2 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent2.h5')
+
+    if(agent1 == 0):
+        agent1 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent1.h5')
+    if(agent2 == 0):
+        agent2 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent2.h5')
+    
+
+    print(len(agent1.memory))
+    print()
 
     score1 = 0
     score2 = 0
@@ -282,6 +320,9 @@ def trainModels(num_max_steps,render=False):
 
     for i in range(num_max_steps):
         progress_bar(i,num_max_steps)
+
+        if i%100:
+            saveAgents()
         if not done:
             if not done1:
                 agent1,state1,action1,score1,done1,env = learn_step(agent1,state1,score1,env)
@@ -292,7 +333,7 @@ def trainModels(num_max_steps,render=False):
                 if render:
                     env.render()
 
-            for j in range(3):
+            for j in range(jumpKSteps):
                 if not done1:
                     agent1,state1,action1,score1,done1,env = dont_learn_step(agent1,action1,state1,score1,env)
                     if render:
@@ -306,19 +347,93 @@ def trainModels(num_max_steps,render=False):
         else:
             break
 
-        agent1.save_model()
-        agent2.save_model()
+    progress_bar(num_max_steps,num_max_steps)
+    print()
+
+    # agent1.save_model()
+    # agent2.save_model()
 
 
+import pickle
+
+def handler(signum,frame):
+    saveAgents()
+    exit()
+
+def saveAgents():
+    if(args.train):
+        f = open(args.file,'wb')
+        pickle.dump(agent1,f)
+        pickle.dump(agent2,f)
+        f.close()
+
+
+from os.path import exists    
+
+def readFromFile(fname):
+    if not exists(fname):
+        return 0,0
+    f = open(fname,'rb')
+    agent1 = pickle.load(f)
+    agent2 = pickle.load(f)
+    f.close()
+    return agent1,agent2
+        
+
+
+signal.signal(signal.SIGINT,handler)
+
+
+
+import argparse
 
 if __name__ == '__main__':
 
-    test = False
-    train = True
+    parser = argparse.ArgumentParser(description='Train or test DQNAgent')
 
-    if(test):
-        agent1,agent2 = load_models()
-        testModels(agent1,agent2)
+    parser.add_argument('-f','--file',type=str,metavar='',required=True,help='filename to load or store agents')
+
+    parser.add_argument('-j','--jump',type=int,metavar='',required=False,help='steps to jump in train mode')
+    parser.add_argument('-n','--num_actions',type=int,metavar='',required=False,help='number of actions to take in train mode')
+    parser.add_argument('-r','--render',type=bool,metavar='',required=False,help='render in train mode')
+
+
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-tr','--train',action='store_true',help='train')
+    group.add_argument('-te','--test',action='store_true',help='test')
+
+    args = parser.parse_args()
+
+    agent1 = 0
+    agent2 = 0
+
+    if(args.test):
+
+        n = 5000
+        render = True
+
+        if args.num_actions is not None:
+            n = args.num_actions
+        if args.render is not None:
+            render = args.render
+
+        agent1,agent2 = readFromFile(args.file)
+        testModels(agent1,agent2,render = render,num_max_steps=n)
     
-    if(train):
-        trainModels(5000,render=False)
+    if(args.train):
+
+        n = 5000
+        jump = 40
+        render = True
+
+        if args.jump is not None:
+            jump = args.jump
+        if args.num_actions is not None:
+            n = args.num_actions
+        if args.render is not None:
+            render = args.render
+
+        agent1, agent2 = readFromFile(args.file)
+        trainModels(n,jumpKSteps = jump,render=render)
+        saveAgents()
+
