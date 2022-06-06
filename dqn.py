@@ -1,6 +1,7 @@
 
 import random
 from time import sleep
+from turtle import width
 import numpy as np
 import colorama
 
@@ -80,15 +81,22 @@ class DQNNet:
 
 
 class Agent:
-    def __init__(self,height,widht,num_frames,n_actions,epsilon,batch_size,alpha=0.0005,gamma=0.996,epsilon_step=0.00001,epsilon_min=0.01,mem_size=1000000,fname='dqn_model.h5'):
+
+    def __init__(self,height,widht,num_frames,n_actions,epsilon,batch_size,alpha=0.0005,gamma=0.996,epsilon_step=1/(1e6),epsilon_min=0.1,mem_size=1000000,fname='dqn_model.h5'):
         self.action_space = [i for i in range(n_actions)]
+        self.height = height
+        self.width = width
+        self.num_frames = num_frames
         self.n_actions = n_actions
         self.gamma = gamma
+        self.alpha = alpha
         self.epsilon = epsilon
         self.epsilon_step = epsilon_step
         self.epsilon_min = epsilon_min
         self.batch_size = batch_size
+        self.mem_size = mem_size
         self.model_file = fname
+        self.fname = fname
         self.memory = ReplayMemory(mem_size)
         
         self.dqnnet = DQNNet(height,widht,num_frames,n_actions)
@@ -219,8 +227,8 @@ def normal_step(agent,state,score,env,name='first_0'):
 
 
 def load_models(fname1 = 'dqn_model_agent1.h5', fname2 = 'dqn_model_agent2.h5'):
-    agent1 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent1.h5')
-    agent2 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent2.h5')
+    agent1 = Agent(210,160,4,18,1.0,32,fname=f'{args.file}_agent1.h5')
+    agent2 = Agent(210,160,4,18,1.0,32,fname=f'{args.file}_agent2.h5')
     agent1.load_model()
     agent2.load_model()
     return agent1,agent2
@@ -276,82 +284,85 @@ def progress_bar(progress, total, color = colorama.Fore.YELLOW):
         color = colorama.Fore.GREEN
     print(color + f"\r|{bar}| {percent:.2f}%", end='\r')
 
-def trainModels(num_max_steps,jumpKSteps=3,render=False,):
+def trainModels(num_max_steps,n_epochs = 100,jumpKSteps=3,render=False,):
 
     global agent1, agent2
 
-
-    env = mario_bros_v3.env(obs_type = 'grayscale_image')
-
-    env.reset(seed=1000)
-    env.render()
-    state, r, d, info = env.last()
-
-
     if(agent1 == 0):
-        agent1 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent1.h5')
+        agent1 = Agent(210,160,4,18,1.0,8,fname='dqn_model_agent1.h5')
     if(agent2 == 0):
-        agent2 = Agent(210,160,4,18,1.0,32,fname='dqn_model_agent2.h5')
+        agent2 = Agent(210,160,4,18,1.0,8,fname='dqn_model_agent2.h5')
     
-
     print(len(agent1.memory))
     print()
 
-    score1 = 0
-    score2 = 0
-    state1 = []
-    state2 = []
-    done1 = False
-    done2 = False
-    for i in range(4):
-        o,r,done1,i = env.last()
-        state1+=[o]
-        score1 += r
-        env.step(0)
-        o,r,done2,i = env.last()
-        state2+=[o]
-        score2+=r
-        env.step(0)
+    scores=[]
 
-    action1 = 0
-    action2 = 0
+    for epoch in range(n_epochs):
 
-    done = done1 and done2
+        env = mario_bros_v3.env(obs_type = 'grayscale_image')
 
-    for i in range(num_max_steps):
-        progress_bar(i,num_max_steps)
+        env.reset(seed=1000)
+        env.render()
+        state, r, d, info = env.last()
 
-        if i%100:
-            saveAgents()
-        if not done:
-            if not done1:
-                agent1,state1,action1,score1,done1,env = learn_step(agent1,state1,score1,env)
-                if render:
-                    env.render()
-            if not done2:
-                agent2,state2,action2,score2,done2,env = learn_step(agent2,state2,score2,env,name='second_0')
-                if render:
-                    env.render()
+        score1 = 0
+        score2 = 0
+        state1 = []
+        state2 = []
+        done1 = False
+        done2 = False
+        for i in range(4):
+            o,r,done1,i = env.last()
+            state1+=[o]
+            score1 += r
+            env.step(0)
+            o,r,done2,i = env.last()
+            state2+=[o]
+            score2+=r
+            env.step(0)
 
-            for j in range(jumpKSteps):
+        action1 = 0
+        action2 = 0
+
+        done = done1 and done2
+
+        for i in range(num_max_steps):
+            progress_bar(i,num_max_steps)
+
+            if not done:
                 if not done1:
-                    agent1,state1,action1,score1,done1,env = dont_learn_step(agent1,action1,state1,score1,env)
+                    agent1,state1,action1,score1,done1,env = learn_step(agent1,state1,score1,env)
                     if render:
                         env.render()
                 if not done2:
-                    agent2,state2,action2,score2,done2,env = dont_learn_step(agent2,action2,state2,score2,env,name='second_0')
+                    agent2,state2,action2,score2,done2,env = learn_step(agent2,state2,score2,env,name='second_0')
                     if render:
                         env.render()
-            
-            done = done1 and done2
-        else:
-            break
 
-    progress_bar(num_max_steps,num_max_steps)
-    print()
+                for j in range(jumpKSteps):
+                    if not done1:
+                        agent1,state1,action1,score1,done1,env = dont_learn_step(agent1,action1,state1,score1,env)
+                        if render:
+                            env.render()
+                    if not done2:
+                        agent2,state2,action2,score2,done2,env = dont_learn_step(agent2,action2,state2,score2,env,name='second_0')
+                        if render:
+                            env.render()
+                
+                done = done1 and done2
+            else:
+                break
 
-    # agent1.save_model()
-    # agent2.save_model()
+        progress_bar(num_max_steps,num_max_steps)
+        print()
+        
+        scores += [[score1,score2]]
+
+        agent1.save_model()
+        agent2.save_model()
+
+        print(f"Ended epoch {epoch} with scores: {score1}, {score2}")
 
 
 import pickle
@@ -360,9 +371,17 @@ def handler(signum,frame):
     saveAgents()
     exit()
 
+
+
+import copy
+
 def saveAgents():
     if(args.train):
         f = open(args.file,'wb')
+        a1 = agent1
+        a2 = agent2
+        a1.memory = None
+        a2.memory = None
         pickle.dump(agent1,f)
         pickle.dump(agent2,f)
         f.close()
@@ -396,6 +415,7 @@ if __name__ == '__main__':
     parser.add_argument('-j','--jump',type=int,metavar='',required=False,help='steps to jump in train mode')
     parser.add_argument('-n','--num_actions',type=int,metavar='',required=False,help='number of actions to take in train mode')
     parser.add_argument('-r','--render',type=bool,metavar='',required=False,help='render in train mode')
+    parser.add_argument('-e','--epochs',type=int,metavar='',required=False,help='epoch to train')
 
 
     group = parser.add_mutually_exclusive_group()
@@ -425,7 +445,10 @@ if __name__ == '__main__':
         n = 5000
         jump = 40
         render = True
+        epochs = 100
 
+        if args.epochs is not None:
+            epochs = args.epochs
         if args.jump is not None:
             jump = args.jump
         if args.num_actions is not None:
@@ -434,6 +457,6 @@ if __name__ == '__main__':
             render = args.render
 
         agent1, agent2 = readFromFile(args.file)
-        trainModels(n,jumpKSteps = jump,render=render)
+        trainModels(n,n_epochs=epochs,jumpKSteps = jump,render=render)
         saveAgents()
 
