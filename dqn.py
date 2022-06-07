@@ -169,7 +169,7 @@ def learn_step(agent,state,score,env,name='first_0'):
         env.step(action)
         done = env.dones[name]
         if not done:
-            reward = env.rewards[name]
+            reward = env.rewards[name] - 1
             observation = env.observe(name)
 
             old_state = np.array(state.copy())
@@ -191,7 +191,7 @@ def dont_learn_step(agent,action,state,score,env,name='first_0'):
         env.step(action)
         done = env.dones[name]
         if not done:
-            reward = env.rewards[name]
+            reward = env.rewards[name] - 1
             observation = env.observe(name)
 
             old_state = np.array(state.copy())
@@ -199,13 +199,15 @@ def dont_learn_step(agent,action,state,score,env,name='first_0'):
             state.pop(0)
             state+=[observation]
             score+=reward
-            if(reward!=0):
-                agent.remember(old_state,action,np.array(state),reward,done)
+            # if(reward!=0):
+            agent.remember(old_state,action,np.array(state),reward,done)
 
     return agent,state,action,score,done,env
 
 def normal_step(agent,state,score,env,name='first_0'):
     o, r, done, info = env.last()
+    # if r < 0:
+    #     print(f"Neg Reward: {r}")
     action = None
     if(done):
         action = None
@@ -284,14 +286,16 @@ def progress_bar(progress, total, color = colorama.Fore.YELLOW):
         color = colorama.Fore.GREEN
     print(color + f"\r|{bar}| {percent:.2f}%", end='\r')
 
+import supersuit as ss
+
 def trainModels(num_max_steps,n_epochs = 100,jumpKSteps=3,render=False,):
 
     global agent1, agent2
 
     if(agent1 == 0):
-        agent1 = Agent(210,160,4,18,1.0,8,fname='dqn_model_agent1.h5')
+        agent1 = Agent(210,160,4,18,1.0,32,fname=f'{args.file}_agent1.h5')
     if(agent2 == 0):
-        agent2 = Agent(210,160,4,18,1.0,8,fname='dqn_model_agent2.h5')
+        agent2 = Agent(210,160,4,18,1.0,32,fname=f'{args.file}_agent2.h5')
     
     print(len(agent1.memory))
     print()
@@ -301,6 +305,10 @@ def trainModels(num_max_steps,n_epochs = 100,jumpKSteps=3,render=False,):
     for epoch in range(n_epochs):
 
         env = mario_bros_v3.env(obs_type = 'grayscale_image')
+        # env = mario_bros_v3.env()
+        # env = ss.color_reduction_v0(env, mode='B')
+        # env = ss.resize_v0(env, x_size=84, y_size=84)
+        # env = ss.frame_stack_v1(env, 4)
 
         env.reset(seed=1000)
         env.render()
