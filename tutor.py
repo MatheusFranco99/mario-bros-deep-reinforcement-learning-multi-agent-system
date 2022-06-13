@@ -34,21 +34,21 @@ env = ss.concat_vec_envs_v1(env, 2, num_cpus=1, base_class="stable_baselines3")
 
 
 
-model = DQN("CnnPolicy", env, verbose=1)
+#model = DQN("CnnPolicy", env, verbose=1,buffer_size=300000)
 
-model.learn(total_timesteps=8000000)
-model.save("spaceInvaders_6464_8000000")
+#model.learn(total_timesteps=200000)
+#model.save("spaceInvaders_6464_200000")
 
 # Rendering
 
-env = mario_bros_v3.env()
+env = space_invaders_v2.env()
 env = ss.observation_lambda_v0(env, lambda obs,obs_space: obs[25:195,:,:], lambda obs_space:obs_space)
 env = ss.color_reduction_v0(env, mode="B")
 env = ss.resize_v1(env, x_size=64, y_size=64)
 # env = ss.action_lambda_v1(env,lambda action, act_space : actChange(action), lambda act_space : gym.spaces.Discrete(7))
 env = ss.frame_stack_v1(env, 4)
 
-model = DQN.load("spaceInvaders_6464_8000000")
+model = DQN.load("spaceInvaders_6464_200000")
 
 env.reset()
 for agent in env.agent_iter():
