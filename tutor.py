@@ -34,10 +34,10 @@ env = ss.concat_vec_envs_v1(env, 2, num_cpus=1, base_class="stable_baselines3")
 
 
 
-model = DQN("CnnPolicy", env, verbose=1,buffer_size=100000)
+#model = DQN("CnnPolicy", env, verbose=1,buffer_size=100000)
 
-model.learn(total_timesteps=5000000)
-model.save("spaceInvaders_6464_5000000")
+#model.learn(total_timesteps=5000000)
+#model.save("spaceInvaders_6464_5000000")
 
 # Rendering
 
