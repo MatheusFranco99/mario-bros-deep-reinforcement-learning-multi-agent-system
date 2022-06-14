@@ -22,33 +22,38 @@ def actChange(a):
     elif a == 6:
         return 13 # jump higher
 
-env = space_invaders_v2.parallel_env()
+#env = space_invaders_v2.parallel_env()
+env = gym.make("ALE/SpaceInvaders-v5")
 env = ss.observation_lambda_v0(env, lambda obs,obs_space: obs[25:195,:,:], lambda obs_space:obs_space)
 env = ss.color_reduction_v0(env, mode="B")
 env = ss.resize_v1(env, x_size=64, y_size=64)
-# env = ss.action_lambda_v1(env,lambda action, act_space : actChange(action), lambda act_space : gym.spaces.Discrete(7))
+#env = ss.action_lambda_v1(env,lambda action, act_space : actChange(action), lambda act_space : gym.spaces.Discrete(7))
+env = ss.action_lambda_v1(env,lambda action, act_space : action, lambda act_space : gym.spaces.Discrete(6))
 env = ss.frame_stack_v1(env, 4)
-env = ss.black_death_v3(env)
-env = ss.pettingzoo_env_to_vec_env_v1(env)
+#env = ss.black_death_v3(env)
+#env = ss.gym_env_to_vec_env_v1(env)
+#env = vectorize_aec_env_v0(env)
 env = ss.concat_vec_envs_v1(env, 32, num_cpus=1, base_class="stable_baselines3")
 
 
 
 model = DQN("CnnPolicy", env, verbose=1,buffer_size=100000)
 
-model.learn(total_timesteps=200000)
-model.save("spaceInvaders_6464_200000")
+model.learn(total_timesteps=30000000)
+model.save("spaceInvadersSingle_6464_6actions_30000000")
 
 # Rendering
 
-env = space_invaders_v2.env()
+#env = space_invaders_v2.env()
+env = gym.make("ALE/SpaceInvaders-v5")
 env = ss.observation_lambda_v0(env, lambda obs,obs_space: obs[25:195,:,:], lambda obs_space:obs_space)
 env = ss.color_reduction_v0(env, mode="B")
 env = ss.resize_v1(env, x_size=64, y_size=64)
 # env = ss.action_lambda_v1(env,lambda action, act_space : actChange(action), lambda act_space : gym.spaces.Discrete(7))
+env = ss.action_lambda_v1(env,lambda action, act_space : action, lambda act_space : gym.spaces.Discrete(6))
 env = ss.frame_stack_v1(env, 4)
 
-model = DQN.load("spaceInvaders_6464_200000")
+model = DQN.load("spaceInvadersSingle_6464_6actions_30000000")
 
 env.reset()
 for agent in env.agent_iter():
