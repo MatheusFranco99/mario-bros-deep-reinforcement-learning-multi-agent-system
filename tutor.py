@@ -30,14 +30,14 @@ env = ss.resize_v1(env, x_size=64, y_size=64)
 env = ss.frame_stack_v1(env, 4)
 env = ss.black_death_v3(env)
 env = ss.pettingzoo_env_to_vec_env_v1(env)
-env = ss.concat_vec_envs_v1(env, 2, num_cpus=1, base_class="stable_baselines3")
+env = ss.concat_vec_envs_v1(env, 32, num_cpus=1, base_class="stable_baselines3")
 
 
 
 model = DQN("CnnPolicy", env, verbose=1,buffer_size=100000)
 
-model.learn(total_timesteps=5000000)
-model.save("spaceInvaders_6464_5000000")
+model.learn(total_timesteps=200000)
+model.save("spaceInvaders_6464_200000")
 
 # Rendering
 
@@ -48,7 +48,7 @@ env = ss.resize_v1(env, x_size=64, y_size=64)
 # env = ss.action_lambda_v1(env,lambda action, act_space : actChange(action), lambda act_space : gym.spaces.Discrete(7))
 env = ss.frame_stack_v1(env, 4)
 
-model = DQN.load("spaceInvaders_6464_5000000")
+model = DQN.load("spaceInvaders_6464_200000")
 
 env.reset()
 for agent in env.agent_iter():
