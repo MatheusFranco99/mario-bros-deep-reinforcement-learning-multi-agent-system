@@ -34,14 +34,14 @@ env = ss.frame_stack_v1(env, 4)
 #env = ss.black_death_v3(env)
 #env = ss.gym_env_to_vec_env_v1(env)
 #env = vectorize_aec_env_v0(env)
-env = ss.concat_vec_envs_v1(env, 32, num_cpus=1, base_class="stable_baselines3")
+env = ss.concat_vec_envs_v1(env, 64, num_cpus=1, base_class="stable_baselines3")
 
 
 
 model = DQN("MlpPolicy", env, verbose=1,buffer_size=100000)
 
-model.learn(total_timesteps=30000000)
-model.save("spaceInvadersSingle_6464_6actions_30000000")
+model.learn(total_timesteps=2000000)
+model.save("spaceInvadersSingle_6464_6actions_2000000")
 
 # Rendering
 
@@ -54,7 +54,7 @@ env = ss.resize_v1(env, x_size=64, y_size=64)
 env = ss.action_lambda_v1(env,lambda action, act_space : action, lambda act_space : gym.spaces.Discrete(6))
 env = ss.frame_stack_v1(env, 4)
 
-model = DQN.load("spaceInvadersSingle_6464_6actions_30000000")
+model = DQN.load("spaceInvadersSingle_6464_6actions_2000000")
 
 env2 = gym.make("SpaceInvaders-v4",render_mode='human',full_action_space = False)
 obs = env.reset()

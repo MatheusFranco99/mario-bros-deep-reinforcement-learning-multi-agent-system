@@ -220,7 +220,10 @@ def train(env, agent, replay_buffer, T=20000, n_theta=100):
                 # num += 1
                 # print(f"\rMean rewards = {mean}.\tLast reward: {episode_rewards[i]},\tt={t}",end="\r")
                 print(f"\r{t=},{np.mean(returns)=}, {episode_rewards[i]=}",end="\r")
+                # if (episode_rewards[i] == 500):
+                #     return agent
                 episode_rewards[i] = 0
+            
 
         # epsilon decay
         agent.decay_epsilon(t/T)
@@ -326,7 +329,7 @@ import supersuit as ss
 
 # Train
 env = VectorizedEnvWrapper(gym.make("CartPole-v1"), num_envs=32)
-env = VectorizedEnvWrapper(gym.make("Breakout-v0",full_action_space=False), num_envs=32)
+# env = VectorizedEnvWrapper(gym.make("Breakout-v0",full_action_space=False), num_envs=32)
 
 
 # env = VectorizedEnvWrapper(gym.make("ALE/SpaceInvaders-v5",full_action_space=False), num_envs=32)
@@ -336,7 +339,7 @@ env = VectorizedEnvWrapper(gym.make("Breakout-v0",full_action_space=False), num_
 
 agent = DeepQLearner(env, alpha=1e-3, gamma=0.95)
 replay_buffer = ReplayBuffer(batch_size=1)
-agent = train(env, agent, replay_buffer, T=200000)
+agent = train(env, agent, replay_buffer, T=400000)
 
 
 
@@ -348,8 +351,6 @@ f.close()
 # Test
 
 env = gym.make("CartPole-v1")
-env = gym.make("ALE/SpaceInvaders-v5",full_action_space=False)
-
 f = open("aaa","rb")
 agent = pickle.load(f)
 f.close()
