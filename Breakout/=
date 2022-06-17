@@ -1,0 +1,2 @@
+Defaulting to user installation because normal site-packages is not writeable
+Requirement already satisfied: tornado in /home/matheus/.local/lib/python3.10/site-packages (4.5.3)
