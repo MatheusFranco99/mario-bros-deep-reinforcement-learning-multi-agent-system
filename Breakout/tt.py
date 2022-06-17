@@ -13,9 +13,9 @@ model = DQN("CnnPolicy",env,verbose=1,buffer_size = 50000)
 
 # model.save("DQN_16_5M_breakout")
 
-# model = DQN.load("DQN_16_5M_breakout")
+model = DQN.load("DQN_16_5M_breakout")
 
-model.set_parameters("DQN_16_5M_breakout")
+# model.set_parameters("DQN_16_5M_breakout")
 
 obs = env.reset()
 while True:
