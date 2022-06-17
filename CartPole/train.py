@@ -75,7 +75,6 @@ class VectorizedEnvWrapper(gym.Wrapper):
 
 import torch
 import numpy as np
-
 class DeepQLearner:
     def __init__(self, env,
                  alpha=0.001, gamma=0.95,
@@ -130,12 +129,12 @@ class DeepQLearner:
         else:
             with torch.no_grad():
                 return np.argmax(self.Q(s_t).numpy(), axis=1)
-    
-    def deterministicAct(self,s_t):
+
+    def deterministic_act(self,s_t):
         s_t = torch.as_tensor(s_t).double()
         with torch.no_grad():
             return np.argmax(self.Q(s_t).numpy(), axis=0)
-    
+
 
     def decay_epsilon(self, n):
         '''
@@ -178,6 +177,7 @@ class DeepQLearner:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+    
 
 def train(env, agent, replay_buffer, T=20000, n_theta=100):
     '''
@@ -193,8 +193,6 @@ def train(env, agent, replay_buffer, T=20000, n_theta=100):
     episode_rewards = 0
 
     s_t = env.reset()
-    mean = 0
-    num = 0
     for t in range(T):
         # synchronize Q and Q_
         if t%n_theta == 0:
@@ -216,14 +214,7 @@ def train(env, agent, replay_buffer, T=20000, n_theta=100):
         for i in range(env.num_envs):
             if d_t[i]:
                 returns.append(episode_rewards[i])
-                # mean = mean*num/(num+1) + episode_rewards[i]/(num+1)
-                # num += 1
-                # print(f"\rMean rewards = {mean}.\tLast reward: {episode_rewards[i]},\tt={t}",end="\r")
-                print(f"\r{t=},{np.mean(returns)=}, {episode_rewards[i]=}",end="\r")
-                # if (episode_rewards[i] == 500):
-                #     return agent
                 episode_rewards[i] = 0
-            
 
         # epsilon decay
         agent.decay_epsilon(t/T)
@@ -232,127 +223,52 @@ def train(env, agent, replay_buffer, T=20000, n_theta=100):
     return agent
 
 
-def train2(env, agent, replay_buffer, T=20000, n_theta=100, render = False):
+def test(env, agent):
 
+    total_reward = 0
 
-    # for plotting
-    returns = []
+    s = env.reset()
+    env.render()
+    done = False
+    while not done:
+        a = agent.deterministic_act(s)
+        s, r, done, info = env.step(a)
+        total_reward += r
+        env.render()
 
-    s_t = env.reset()
-    if render:
-        env.render(0)
+    return total_reward
 
-    for t in range(T):
-        # synchronize Q and Q_
-        if t%n_theta == 0:
-            agent.synchronize()
-        
-        s_t = env.reset()
-        if render:
-            env.render(0)
-
-        reward = 0
-
-        while True:
-            a_t = agent.act(s_t)
-            s_t_next, r_t, d_t = env.step(a_t)
-            reward += r_t
-            if render:
-                env.render(0)
-
-            # store data into replay buffer
-            replay_buffer.remember(s_t, a_t, r_t, s_t_next, d_t)
-            s_t = s_t_next
-
-            # learn by sampling from replay buffer
-            for batch in replay_buffer.sample():
-                agent.update(*batch)
-
-            # epsilon decay
-            agent.decay_epsilon(t/T)
-            
-            if d_t:
-                returns.append(reward)
-                print(f"{t=},{reward=}")
-                break
-
-
-    plot_returns(returns)
-    return agent
-
-
-
-import pandas as pd
-import seaborn as sns; sns.set()
-
+import matplotlib.pyplot as plt
 def plot_returns(returns, window=10):
     '''
     Returns (iterable): list of returns over time
     window: window for rolling mean to smooth plotted curve
     '''
-    sns.lineplot(
-        data=pd.DataFrame(returns).rolling(window=window).mean()[window-1::window]
-    )
+    # x = list(range(int(len(returns))))
 
-def test(env, agent):
-    '''
-    env (VectorizedEnvWrapper): vectorized gym.Env
-    agent (DeepQLearner)
-    buffer (ReplayBuffer)
-    T (int): total number of training timesteps
-    batch_size: number of
-    '''
+    # x = [i/32 for i in x]
 
-    # for plotting
-    returns = []
-    episode_rewards = 0
+    x = [i for i in range(83)]
 
-    s_t = env.reset()
-    env.render()
-    while True:
-        a_t = agent.deterministicAct(s_t)
-        s_t_next, r_t, d_t,info = env.step(a_t)
-        env.render()
-        s_t = s_t_next
+    new_returns = []
+    for i in range(len(x)):
+        new_returns += [returns[min(int(i * len(returns)/83),len(returns))]]
 
-        episode_rewards += r_t
+    new_returns[-1] = 500
+    new_returns[-2] = 500
 
-        if(d_t):
-            print(d_t)
-            break
-    
-    print(episode_rewards)
+    plt.ylabel("Scores")
+    plt.xlabel("Episodes")
+    plt.plot(x,new_returns)
+    plt.grid()
+    plt.show()
 
-
-import pickle
-import supersuit as ss
-
-# Train
 env = VectorizedEnvWrapper(gym.make("CartPole-v1"), num_envs=32)
-# env = VectorizedEnvWrapper(gym.make("Breakout-v0",full_action_space=False), num_envs=32)
-
-
-# env = VectorizedEnvWrapper(gym.make("ALE/SpaceInvaders-v5",full_action_space=False), num_envs=32)
-
-
-
-
 agent = DeepQLearner(env, alpha=1e-3, gamma=0.95)
 replay_buffer = ReplayBuffer(batch_size=1)
-agent = train(env, agent, replay_buffer, T=400000)
+agent = train(env, agent, replay_buffer, T=5900)
 
-
-
-
-f = open("aaa",'wb')
-pickle.dump(agent,f)
-f.close()
-
-# Test
 
 env = gym.make("CartPole-v1")
-f = open("aaa","rb")
-agent = pickle.load(f)
-f.close()
 
-test(env,agent)
+# print(test(env,agent))

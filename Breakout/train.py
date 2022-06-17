@@ -12,10 +12,13 @@ env = DummyVecEnv([lambda: env])
 model = DQN('MlpPolicy', env, buffer_size = 100000, verbose=1)
 
 
-model.learn(total_timesteps=4000000)
+# model.learn(total_timesteps=4000000)
 
 
-model.save('dqn_breakout 4000000 model')
+# model.save('dqn_breakout 4000000 model')
+
+
+model.load('dqn_breakout 1500000 model')
 
 obs = env.reset
 
