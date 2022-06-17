@@ -8,7 +8,7 @@ env = make_atari_env('BreakoutNoFrameskip-v4', n_envs = 16)
 
 env = VecFrameStack(env, n_stack=4)
 
-model = DQN("CnnPolicy",env,verbose=1)
+model = DQN("CnnPolicy",env,verbose=1,buffer_size = 50000)
 # model.learn(total_timesteps=int(5e6))
 
 # model.save("DQN_16_5M_breakout")
@@ -19,6 +19,6 @@ model.set_parameters("DQN_16_5M_breakout")
 
 obs = env.reset()
 while True:
-    action, _state = model.predict(obs)
+    action, _state = model.predict(obs,deterministic = True)
     obs, reward, done, info = env.step(action)
     env.render()
